@@ -2,6 +2,11 @@
 using Shell
 using Glob
 
+#=
+[0-RUN-180321-130035]comp-0001.sh
+[0-UNKOWN-180321-130155][0-RUN-180321-130035]comp-0001.sh
+=#
+
 runners = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
     `ps -aux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*runner.jl'`))), "\n"))
 
@@ -26,6 +31,9 @@ println(logger, "[$(now())] start")
 
 const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
 println(logger, "$ngpu GPUs detected.")
+
+const CLEAN_TICK = 2
+const ticks = CLEAN_TICK * ones(ngpu)
 
 timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
 
@@ -66,7 +74,28 @@ function nextgpu()
     return gpu == 0 ? nothing : gpu - 1
 end
 
+"""
+    if a gpu is free for `CLEAN_TICK` seconds and a running job own that gpu,
+    then mark this job as unkown.
+"""
+function check_unkown()
+    stats = gpustatus()
+    for (i, s) in stats
+        if s
+            ticks[i] -= 1
+        else
+            ticks[i] = CLEAN_TICK
+        end
+
+        if ticks[i] == 0
+            suspects = glob([r"\[\d-RUN-\d+-\d+].*\.sh"], jobroot)
+        end
+end
+
 for i ∈ 1:10
+    #region 0. do some clean work
+    check_unkown()
+    #endregion
     job = nextjob()
     if job != nothing
         gpu = nextgpu()
