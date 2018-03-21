@@ -51,15 +51,11 @@ function gpustatus()
     return gpus
 end
 
-function getrunningjobs()
-
-end
-
 """
     jobs are `.sh` or `.bk` files in job queue dir.
 """
 function nextjob()
-    jobs =filter(f->length(f)>3 && f[end-2:end] in [".sh", ".bk"], readdir(jobqueue))
+    jobs = filter(f->length(f)>3 && f[end-2:end] in [".sh", ".bk"], readdir(jobqueue))
     return length(jobs) > 0 ? jobs[1] : nothing
 end
 
@@ -90,34 +86,37 @@ function process_job(job, gpu)
         jobname = job
     end
     jobname = "[$gpu-RUN-$(timestamp())]$jobname"
+    jobfile = joinpath(jobroot, jobname)
 
     # backup script
-    mv(joinpath(jobqueue, job), joinpath(jobroot, "$jobname.bk"))
+    mv(joinpath(jobqueue, job), "$jobfile.bk"))
 
     # build running script
-    f = open(joinpath(jobroot, jobname), "w")
-    script = replace(strip(readstring(joinpath(jobroot, "$jobname.bk"))), raw"$GPU", gpu)
+    f = open(jobfile, "w")
+    script = replace(strip(readstring("$jobfile.bk"))), raw"$GPU", gpu)
     println(f, "#!/usr/bin/sh")
     println(f, "# redirect output to log file")
-    println(f, "$script >> '$(joinpath(jobroot, "$jobname.log"))' 2>&1")
+    println(f, "$script >> '$("$jobfile.log"))' 2>&1")
     println(f, "# post-process")
     println(f, """
 if [ \$? -eq 0 ]; then
-    mv '$(joinpath(jobroot, jobname))' '$jobdone'
-    mv '$(joinpath(jobroot, jobname)).bk' '$jobdone'
-    mv '$(joinpath(jobroot, jobname)).log' '$jobdone'
+    mv '$(jobfile)' '$jobdone'
+    mv '$(jobfile).bk' '$jobdone'
+    mv '$(jobfile).log' '$jobdone'
     echo OK
 else
     DATE=$(date +%y%m%d"-"%H%M%S)
-    mv '$(joinpath(jobroot, jobname))' '$jobroot/[$gpu-ERR-\$DATE]$jobname'
-    mv '$(joinpath(jobroot, jobname)).bk' '$jobroot/[$gpu-ERR-\$DATE]$jobname.bk'
-    mv '$(joinpath(jobroot, jobname)).log' '$jobroot/[$gpu-ERR-\$DATE]$jobname.log'
+    mv '$(jobfile)' '$jobroot/[$gpu-ERR-\$DATE]$jobname'
+    mv '$(jobfile).bk' '$jobroot/[$gpu-ERR-\$DATE]$jobname.bk'
+    mv '$(jobfile).log' '$jobroot/[$gpu-ERR-\$DATE]$jobname.log'
     echo FAIL
 fi
 """)
+    close(f)
+    run(`chmod +x $jobfile`)
 
     # execute script
-    Shell.runfile(joinpath(jobroot, jobname), background=true)
+    Shell.runfile(jobfile, background=true)
 end
 
 """
