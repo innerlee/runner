@@ -89,26 +89,26 @@ function process_job(job, gpu)
     jobfile = joinpath(jobroot, jobname)
 
     # backup script
-    mv(joinpath(jobqueue, job), "$jobfile.bk"))
+    mv(joinpath(jobqueue, job), "$jobfile.bk")
 
     # build running script
     f = open(jobfile, "w")
-    script = replace(strip(readstring("$jobfile.bk"))), raw"$GPU", gpu)
+    script = replace(strip(readstring("$jobfile.bk")), raw"$GPU", gpu)
     println(f, "#!/usr/bin/sh")
     println(f, "# redirect output to log file")
-    println(f, "$script >> '$("$jobfile.log"))' 2>&1")
+    println(f, "$script >> '$jobfile.log' 2>&1")
     println(f, "# post-process")
     println(f, """
 if [ \$? -eq 0 ]; then
-    mv '$(jobfile)' '$jobdone'
-    mv '$(jobfile).bk' '$jobdone'
-    mv '$(jobfile).log' '$jobdone'
+    mv '$jobfile' '$jobdone'
+    mv '$jobfile.bk' '$jobdone'
+    mv '$jobfile.log' '$jobdone'
     echo OK
 else
-    DATE=$(date +%y%m%d"-"%H%M%S)
-    mv '$(jobfile)' '$jobroot/[$gpu-ERR-\$DATE]$jobname'
-    mv '$(jobfile).bk' '$jobroot/[$gpu-ERR-\$DATE]$jobname.bk'
-    mv '$(jobfile).log' '$jobroot/[$gpu-ERR-\$DATE]$jobname.log'
+    DATE=\$(date +%y%m%d"-"%H%M%S)
+    mv '$jobfile' '$jobroot/[$gpu-ERR-\$DATE]$jobname'
+    mv '$jobfile.bk' '$jobroot/[$gpu-ERR-\$DATE]$jobname.bk'
+    mv '$jobfile.log' '$jobroot/[$gpu-ERR-\$DATE]$jobname.log'
     echo FAIL
 fi
 """)
