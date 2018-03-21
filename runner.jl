@@ -92,11 +92,11 @@ function process_job(job, gpu)
     jobname = "[$gpu-RUN-$(timestamp())]$jobname"
 
     # backup script
-    cp(joinpath(jobqueue, job), joinpath(jobroot, "$jobname.bk"))
+    mv(joinpath(jobqueue, job), joinpath(jobroot, "$jobname.bk"))
 
     # build running script
     f = open(joinpath(jobroot, jobname), "w")
-    script = replace(strip(readstring(joinpath(jobqueue, job))), raw"$GPU", gpu)
+    script = replace(strip(readstring(joinpath(jobroot, "$jobname.bk"))), raw"$GPU", gpu)
     println(f, "#!/usr/bin/sh")
     println(f, "# redirect output to log file")
     println(f, "$script >> '$(joinpath(jobroot, "$jobname.log"))' 2>&1")
