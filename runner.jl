@@ -55,23 +55,69 @@ function getrunningjobs()
 
 end
 
-function cleanjobs()
-    freegpus = find(gpustatus()) .- 1
-    for g in freegpus
-
-    end
-end
-
+"""
+    jobs are `.sh` or `.bk` files in job queue dir.
+"""
 function nextjob()
-    jobs = readdir(jobqueue)
+    jobs =filter(f->length(f)>3 && f[end-2:end] in [".sh", ".bk"], readdir(jobqueue))
     return length(jobs) > 0 ? jobs[1] : nothing
 end
 
+"""
+    next available gpu.
+"""
 function nextgpu()
     gpus = gpustatus()
     gpu = findfirst(gpus)
-
     return gpu == 0 ? nothing : gpu - 1
+end
+
+"""
+    process job.
+
+    * move to job root
+    * backup
+    * generate running script
+        * redirect stdout/stderr
+        * if success, mark as done and move self to job done
+        * if fail, mark as err
+"""
+function process_job(job, gpu)
+    # check job type: normal or bk
+    if job[end-2:end] == ".bk"
+        jobname = replace(replace(job, r"\[.*\]", ""), ".bk", "")
+    else
+        jobname = job
+    end
+    jobname = "[$gpu-RUN-$(timestamp())]$jobname"
+
+    # backup script
+    cp(joinpath(jobqueue, job), joinpath(jobroot, "$jobname.bk"))
+
+    # build running script
+    f = open(joinpath(jobroot, jobname), "w")
+    script = replace(strip(readstring(joinpath(jobqueue, job))), raw"$GPU", gpu)
+    println(f, "#!/usr/bin/sh")
+    println(f, "# redirect output to log file")
+    println(f, "$script >> '$(joinpath(jobroot, "$jobname.log"))' 2>&1")
+    println(f, "# post-process")
+    println(f, """
+if [ \$? -eq 0 ]; then
+    mv '$(joinpath(jobroot, jobname))' '$jobdone'
+    mv '$(joinpath(jobroot, jobname)).bk' '$jobdone'
+    mv '$(joinpath(jobroot, jobname)).log' '$jobdone'
+    echo OK
+else
+    DATE=$(date +%y%m%d"-"%H%M%S)
+    mv '$(joinpath(jobroot, jobname))' '$jobroot/[$gpu-ERR-\$DATE]$jobname'
+    mv '$(joinpath(jobroot, jobname)).bk' '$jobroot/[$gpu-ERR-\$DATE]$jobname.bk'
+    mv '$(joinpath(jobroot, jobname)).log' '$jobroot/[$gpu-ERR-\$DATE]$jobname.log'
+    echo FAIL
+fi
+""")
+
+    # execute script
+
 end
 
 """
@@ -98,24 +144,30 @@ function check_unkown()
                 if isfile(logname)
                     mv(logname, joinpath(dirname(logname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(logname))"))
                 end
+                # rename bk to unkown
+                bkname = "$s.bk"
+                if isfile(bkname)
+                    mv(bkname, joinpath(dirname(bkname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(bkname))"))
+                end
             end
         end
     end
 end
 
 for i ∈ 1:10
-    #region 0. do some clean work
+    #0. do some clean work
     check_unkown()
-    #endregion
 
-    # job = nextjob()
-    # if job != nothing
-    #     gpu = nextgpu()
-    #     if gpu != nothing
-    #         cmd = replace(readstring(joinpath(jobqueue, job)), raw"$GPU", gpu)
-    #         Shell.run(cmd)
-    #     end
-    # end
+    job = nextjob()
+
+    if job != nothing
+        gpu = nextgpu()
+        if gpu != nothing
+            process_job(job, gpu)
+            # cmd = replace(readstring(joinpath(jobqueue, job)), raw"$GPU", gpu)
+            # Shell.run(cmd)
+        end
+    end
 
     sleep(1)
 end
