@@ -1,0 +1,12 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        ".vscode": true,
+        ".gitignore": true,
+        "LICENSE": true,
+        "**/.DS_Store": true
+    }
+}
