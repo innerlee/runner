@@ -80,7 +80,7 @@ end
 """
 function check_unkown()
     stats = gpustatus()
-    for (i, s) in stats
+    for (i, s) in enumerate(stats)
         if s
             ticks[i] -= 1
         else
@@ -88,22 +88,34 @@ function check_unkown()
         end
 
         if ticks[i] == 0
-            suspects = glob([r"\[\d-RUN-\d+-\d+].*\.sh"], jobroot)
+            ticks[i] = CLEAN_TICK
+            suspects = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh\$")], jobroot)
+            for s in suspects
+                # rename to unkown
+                mv(s, joinpath(dirname(s), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(s))"))
+                # rename log to unkown
+                logname = "$s.log"
+                if isfile(logname)
+                    mv(logname, joinpath(dirname(logname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(logname))"))
+                end
+            end
         end
+    end
 end
 
 for i ∈ 1:10
     #region 0. do some clean work
     check_unkown()
     #endregion
-    job = nextjob()
-    if job != nothing
-        gpu = nextgpu()
-        if gpu != nothing
-            cmd = replace(readstring(joinpath(jobqueue, job)), raw"$GPU", gpu)
-            Shell.run(cmd)
-        end
-    end
+
+    # job = nextjob()
+    # if job != nothing
+    #     gpu = nextgpu()
+    #     if gpu != nothing
+    #         cmd = replace(readstring(joinpath(jobqueue, job)), raw"$GPU", gpu)
+    #         Shell.run(cmd)
+    #     end
+    # end
 
     sleep(1)
 end
