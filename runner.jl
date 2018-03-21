@@ -94,21 +94,22 @@ function process_job(job, gpu)
     # build running script
     f = open(jobfile, "w")
     script = replace(strip(readstring("$jobfile.bk")), raw"$GPU", gpu)
-    println(f, "#!/usr/bin/sh")
-    println(f, "# redirect output to log file")
-    println(f, "$script >> '$jobfile.log' 2>&1")
-    println(f, "# post-process")
     println(f, """
+#!/usr/bin/sh
+# redirect output to log file
+$script >> '$jobfile.log' 2>&1
+# post-process
 if [ \$? -eq 0 ]; then
-    mv '$jobfile' '$jobdone'
-    mv '$jobfile.bk' '$jobdone'
-    mv '$jobfile.log' '$jobdone'
+    DATE=\$(date +%y%m%d"-"%H%M%S)
+    mv '$jobfile' "$jobdone/[$gpu-DONE-\$DATE]$jobname"
+    mv '$jobfile.bk' "$jobdone/[$gpu-DONE-\$DATE]$jobname.bk"
+    mv '$jobfile.log' "$jobdone/[$gpu-DONE-\$DATE]$jobname.log"
     echo OK
 else
     DATE=\$(date +%y%m%d"-"%H%M%S)
-    mv '$jobfile' '$jobroot/[$gpu-ERR-\$DATE]$jobname'
-    mv '$jobfile.bk' '$jobroot/[$gpu-ERR-\$DATE]$jobname.bk'
-    mv '$jobfile.log' '$jobroot/[$gpu-ERR-\$DATE]$jobname.log'
+    mv '$jobfile' "$jobroot/[$gpu-ERR-\$DATE]$jobname"
+    mv '$jobfile.bk' "$jobroot/[$gpu-ERR-\$DATE]$jobname.bk"
+    mv '$jobfile.log' "$jobroot/[$gpu-ERR-\$DATE]$jobname.log"
     echo FAIL
 fi
 """)
@@ -154,8 +155,7 @@ function check_unkown()
     end
 end
 
-for i ∈ 1:10
-    #0. do some clean work
+while true
     check_unkown()
 
     job = nextjob()
