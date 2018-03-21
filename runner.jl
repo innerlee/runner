@@ -1,5 +1,6 @@
 #!/usr/bin/env julia
 using Shell
+using Glob
 
 runners = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
     `ps -aux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*runner.jl'`))), "\n"))
@@ -26,12 +27,12 @@ println(logger, "[$(now())] start")
 const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
 println(logger, "$ngpu GPUs detected.")
 
-function nextjob()
-    jobs = readdir(jobqueue)
-    return length(jobs) > 0 ? jobs[1] : nothing
-end
+timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
 
-function nextgpu()
+"""
+    an array of gpu status in which `true` means free
+"""
+function gpustatus()
     stats = readstring(`nvidia-smi`)
     m = match(r"GPU\s*PID\s*Type\s*Process", stats)
     processes = stats[m.offset:end]
@@ -39,6 +40,27 @@ function nextgpu()
     for m in eachmatch(r"\|\s+(\d+)\s+\d+\s+C", processes)
         gpus[parse(Int, m.captures[1]) + 1] = false
     end
+    return gpus
+end
+
+function getrunningjobs()
+
+end
+
+function cleanjobs()
+    freegpus = find(gpustatus()) .- 1
+    for g in freegpus
+
+    end
+end
+
+function nextjob()
+    jobs = readdir(jobqueue)
+    return length(jobs) > 0 ? jobs[1] : nothing
+end
+
+function nextgpu()
+    gpus = gpustatus()
     gpu = findfirst(gpus)
 
     return gpu == 0 ? nothing : gpu - 1
