@@ -117,7 +117,7 @@ fi
 """)
 
     # execute script
-
+    Shell.runfile(joinpath(jobroot, jobname), background=true)
 end
 
 """
@@ -128,29 +128,30 @@ function check_unkown()
     stats = gpustatus()
     for (i, s) in enumerate(stats)
         if s
-            ticks[i] -= 1
-        else
-            ticks[i] = CLEAN_TICK
-        end
-
-        if ticks[i] == 0
-            ticks[i] = CLEAN_TICK
             suspects = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh\$")], jobroot)
-            for s in suspects
-                # rename to unkown
-                mv(s, joinpath(dirname(s), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(s))"))
-                # rename log to unkown
-                logname = "$s.log"
-                if isfile(logname)
-                    mv(logname, joinpath(dirname(logname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(logname))"))
-                end
-                # rename bk to unkown
-                bkname = "$s.bk"
-                if isfile(bkname)
-                    mv(bkname, joinpath(dirname(bkname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(bkname))"))
+            if length(suspects) > 0
+                ticks[i] -= 1
+                if ticks[i] == 0
+                    for s in suspects
+                        # rename to unkown
+                        mv(s, joinpath(dirname(s), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(s))"))
+                        # rename log to unkown
+                        logname = "$s.log"
+                        if isfile(logname)
+                            mv(logname, joinpath(dirname(logname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(logname))"))
+                        end
+                        # rename bk to unkown
+                        bkname = "$s.bk"
+                        if isfile(bkname)
+                            mv(bkname, joinpath(dirname(bkname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(bkname))"))
+                        end
+                    end
+                else
+                    continue
                 end
             end
         end
+        ticks[i] = CLEAN_TICK
     end
 end
 
@@ -164,8 +165,6 @@ for i ∈ 1:10
         gpu = nextgpu()
         if gpu != nothing
             process_job(job, gpu)
-            # cmd = replace(readstring(joinpath(jobqueue, job)), raw"$GPU", gpu)
-            # Shell.run(cmd)
         end
     end
 
