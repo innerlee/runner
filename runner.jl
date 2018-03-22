@@ -101,9 +101,9 @@ $script >> '$jobfile.log' 2>&1
 # post-process
 if [ \$? -eq 0 ]; then
     DATE=\$(date +%y%m%d"-"%H%M%S)
-    mv '$jobfile' "$jobdone/[$gpu-DONE-\$DATE]$jobname"
-    mv '$jobfile.bk' "$jobdone/[$gpu-DONE-\$DATE]$jobname.bk"
-    mv '$jobfile.log' "$jobdone/[$gpu-DONE-\$DATE]$jobname.log"
+    mv '$jobfile' "$jobdone/[DONE-\$DATE]$jobname"
+    mv '$jobfile.bk' "$jobdone/[DONE-\$DATE]$jobname.bk"
+    mv '$jobfile.log' "$jobdone/[DONE-\$DATE]$jobname.log"
     echo OK
 else
     DATE=\$(date +%y%m%d"-"%H%M%S)
@@ -111,8 +111,7 @@ else
     mv '$jobfile.bk' "$jobroot/[$gpu-ERR-\$DATE]$jobname.bk"
     mv '$jobfile.log' "$jobroot/[$gpu-ERR-\$DATE]$jobname.log"
     echo FAIL
-fi
-""")
+fi""")
     close(f)
     run(`chmod +x $jobfile`)
 
