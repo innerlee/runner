@@ -1,10 +1,11 @@
 #!/usr/bin/env julia
 using Shell
 using Glob
+using Suppressor
 
 #=
-[0-RUN-180321-130035]comp-0001.sh
-[0-UNKOWN-180321-130155][0-RUN-180321-130035]comp-0001.sh
+[0-RUN-180321-130035]job-001.sh
+[0-UNKNOWN-180321-130155][0-RUN-180321-130035]job-001.sh
 =#
 
 runners = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
@@ -26,13 +27,15 @@ const joblog = joinpath(jobroot, "log")
 const logfile = joinpath(joblog, "runner.log")
 mkpath.([jobroot, jobqueue, jobdone, jobtrash, joblog])
 
-logger = open(logfile, "a")
-println(logger, "[$(now())] start")
+@suppress Base.println(xs...) = open(f -> (println(f, "[$(now())] ", xs...);
+    println(STDOUT, "[$(now())] ", xs...)), logfile, "a")
+
+println("===== start =====")
 
 const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
-println(logger, "$ngpu GPUs detected.")
+println("$ngpu GPUs detected.")
 
-const CLEAN_TICK = 2
+const CLEAN_TICK = 5
 const ticks = CLEAN_TICK * ones(ngpu)
 
 timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
@@ -79,6 +82,7 @@ end
         * if fail, mark as err
 """
 function process_job(job, gpu)
+    println("processing $job on gpu $gpu")
     # check job type: normal or bk
     if job[end-2:end] == ".bk"
         jobname = replace(replace(job, r"\[.*\]", ""), ".bk", "")
@@ -90,10 +94,11 @@ function process_job(job, gpu)
 
     # backup script
     mv(joinpath(jobqueue, job), "$jobfile.bk")
+    println("backup to $jobname.bk")
 
     # build running script
     f = open(jobfile, "w")
-    script = replace(strip(readstring("$jobfile.bk")), raw"$GPU", gpu)
+    script = replace(strip(readstring("$jobfile.bk")), "\$GPU", gpu)
     println(f, """
 #!/usr/bin/sh
 # redirect output to log file
@@ -114,16 +119,18 @@ else
 fi""")
     close(f)
     run(`chmod +x $jobfile`)
+    println("generate script $jobname")
 
     # execute script
     Shell.runfile(jobfile, background=true)
+    println("execute script $jobname")
 end
 
 """
     if a gpu is free for `CLEAN_TICK` seconds and a running job own that gpu,
-    then mark this job as unkown.
+    then mark this job as unknown.
 """
-function check_unkown()
+function check_unknown()
     stats = gpustatus()
     for (i, s) in enumerate(stats)
         if s
@@ -132,17 +139,22 @@ function check_unkown()
                 ticks[i] -= 1
                 if ticks[i] == 0
                     for s in suspects
-                        # rename to unkown
-                        mv(s, joinpath(dirname(s), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(s))"))
-                        # rename log to unkown
+                        println("unknown detected $s")
+                        newname = "[$(i-1)-UNKNOWN-$(timestamp())]$(basename(s))"
+                        # rename to unknown
+                        mv(s, joinpath(jobroot, newname))
+                        println("rename script to $newname")
+                        # rename log to unknown
                         logname = "$s.log"
                         if isfile(logname)
-                            mv(logname, joinpath(dirname(logname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(logname))"))
+                            mv(logname, joinpath(jobroot, "$newname.log"))
+                            println("rename log to $newname.log")
                         end
-                        # rename bk to unkown
+                        # rename bk to unknown
                         bkname = "$s.bk"
                         if isfile(bkname)
-                            mv(bkname, joinpath(dirname(bkname), "[$(i-1)-UNKOWN-$(timestamp())]$(basename(bkname))"))
+                            mv(bkname, joinpath(jobroot, "$newname.bk"))
+                            println("rename backup to $newname.bk")
                         end
                     end
                 else
@@ -155,7 +167,7 @@ function check_unkown()
 end
 
 while true
-    check_unkown()
+    check_unknown()
 
     job = nextjob()
 
