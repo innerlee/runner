@@ -1,4 +1,9 @@
 #!/usr/bin/env julia
+# Julia v0.6.2
+# Pkg.update()
+# Pkg.clone("git@github.com:innerlee/Shell.jl.git")
+# Pkg.add("Glob")
+# Pkg.add("Suppressor")
 using Shell
 using Glob
 using Suppressor
