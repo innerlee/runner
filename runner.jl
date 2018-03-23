@@ -174,7 +174,9 @@ while true
     if job != nothing
         gpu = nextgpu()
         if gpu != nothing
-            process_job(job, gpu)
+            disable_sigint() do
+                process_job(job, gpu)
+            end
         end
     end
 
