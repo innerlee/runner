@@ -40,7 +40,7 @@ println("===== start =====")
 const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
 println("$ngpu GPUs detected.")
 
-const CLEAN_TICK = 5
+const CLEAN_TICK = 60
 const ticks = CLEAN_TICK * ones(ngpu)
 
 timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
@@ -104,6 +104,9 @@ function process_job(job, gpu)
     # build running script
     f = open(jobfile, "w")
     script = replace(strip(readstring("$jobfile.bk")), "\$GPU", gpu)
+    if script[1] == '"' && script[end] == '"'
+        script = script[2:end-1]
+    end
     println(f, """
 #!/usr/bin/sh
 # redirect output to log file
