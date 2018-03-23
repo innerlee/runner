@@ -131,7 +131,7 @@ fi""")
 
     # execute script
     Shell.runfile(jobfile, background=true)
-    ticks[gpu] = CLEAN_TICK
+    ticks[gpu+1] = CLEAN_TICK
     println("execute script $jobname")
 end
 
