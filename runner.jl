@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 # Julia v0.6.2
 # Pkg.update()
-# Pkg.clone("git@github.com:innerlee/Shell.jl.git")
+# Pkg.clone("git@github.com:innerlee/Shell.jl")
 # Pkg.add("Glob")
 # Pkg.add("Suppressor")
 using Shell
