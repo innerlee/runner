@@ -104,7 +104,7 @@ function process_job(job, gpu)
     # build running script
     f = open(jobfile, "w")
     script = replace(strip(readstring("$jobfile.bk")), "\$GPU", gpu)
-    if script[1] == '"' && script[end] == '"'
+    if length(script) > 2 && script[1] == '"' && script[end] == '"'
         script = script[2:end-1]
     end
     println(f, """
