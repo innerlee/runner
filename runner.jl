@@ -40,7 +40,7 @@ println("===== start =====")
 const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
 println("$ngpu GPUs detected.")
 
-const CLEAN_TICK = 60
+const CLEAN_TICK = 30
 const ticks = CLEAN_TICK * ones(ngpu)
 
 timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
@@ -69,11 +69,27 @@ end
 
 """
     next available gpu.
+
+    gpu is available only if
+    * gpu is free, and
+    * no job claim that gpu
 """
 function nextgpu()
     gpus = gpustatus()
-    gpu = findfirst(gpus)
-    return gpu == 0 ? nothing : gpu - 1
+    for i in find(gpus)
+        if(length(glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh\$")], jobroot)) == 0)
+            return i - 1
+        end
+    end
+    return nothing
+end
+
+function stopjob(job)
+
+end
+
+function check_stop()
+
 end
 
 """
@@ -176,6 +192,7 @@ function check_unknown()
 end
 
 while true
+    check_stop()
     check_unknown()
 
     job = nextjob()
