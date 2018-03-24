@@ -97,14 +97,27 @@ end
     stop a job by throwing its .bk file to stop folder.
 """
 function stopjob(job)
-    stoplist = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh.bk\$")], jobstop)
-    for s in stoplist
-
+    jobstr = replace(replace(job, "[", "\\["), "]", "\\]")
+    ps = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
+        `ps -aux`, `grep '$jobstr'`))), "\n"))
+    if length(ps) == 1
+        m = match(r"\S+\s+(\d+)\s", string(ps))
+        try
+            run(`kill $m`)
+            print("stopped job $job")
+            # move files
+            newname = "[STOPFAIL-$(timestamp())]$(basename(s))"
+        catch err
+            print("error when stopping $job, message: $err")
+        end
     end
 end
 
 function check_stop()
-
+    stoplist = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh.bk\$")], jobstop)
+    for s in stoplist
+        stopjob(s[1:end-3])
+    end
 end
 
 """
