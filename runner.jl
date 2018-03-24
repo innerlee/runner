@@ -27,10 +27,11 @@ end
 const jobroot = expanduser("~/jobs")
 const jobqueue = joinpath(jobroot, "queue")
 const jobdone = joinpath(jobroot, "done")
+const jobstop = joinpath(jobroot, "stop")
 const jobtrash = joinpath(jobroot, "trash")
 const joblog = joinpath(jobroot, "log")
 const logfile = joinpath(joblog, "runner.log")
-mkpath.([jobroot, jobqueue, jobdone, jobtrash, joblog])
+mkpath.([jobroot, jobqueue, jobdone, jobstop, jobtrash, joblog])
 
 @suppress Base.println(xs...) = open(f -> (println(f, "[$(now())] ", xs...);
     println(STDOUT, "[$(now())] ", xs...)), logfile, "a")
@@ -39,6 +40,13 @@ println("===== start =====")
 
 const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
 println("$ngpu GPUs detected.")
+
+if length(ARGS) == 1
+    VISIBLE_GPU = parse.(Int, split(ARGS[1], ","))
+else
+    VISIBLE_GPU = collect(0:ngpu-1)
+end
+println("visible gpu: $(VISIBLE_GPU).")
 
 const CLEAN_TICK = 30
 const ticks = CLEAN_TICK * ones(ngpu)
@@ -77,6 +85,7 @@ end
 function nextgpu()
     gpus = gpustatus()
     for i in find(gpus)
+        i - 1 ∉ VISIBLE_GPU && continue
         if(length(glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh\$")], jobroot)) == 0)
             return i - 1
         end
@@ -84,8 +93,14 @@ function nextgpu()
     return nothing
 end
 
+"""
+    stop a job by throwing its .bk file to stop folder.
+"""
 function stopjob(job)
+    stoplist = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh.bk\$")], jobstop)
+    for s in stoplist
 
+    end
 end
 
 function check_stop()
