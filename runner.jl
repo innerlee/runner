@@ -71,7 +71,7 @@ end
     jobs are `.sh` or `.bk` files in job queue dir.
 """
 function nextjob()
-    jobs = filter(f->length(f)>3 && f[end-2:end] in [".sh", ".bk"], readdir(jobqueue))
+    jobs = filter(f->endswith(f, ".sh") || endswith(f, ".sh.bk"), readdir(jobqueue))
     return length(jobs) > 0 ? jobs[1] : nothing
 end
 
@@ -97,26 +97,47 @@ end
     stop a job by throwing its .bk file to stop folder.
 """
 function stopjob(job)
+    println("try stop $job")
     jobstr = replace(replace(job, "[", "\\["), "]", "\\]")
     ps = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
-        `ps -aux`, `grep '$jobstr'`))), "\n"))
+        `ps -aux`, `grep $jobstr`))), "\n"))
     if length(ps) == 1
         m = match(r"\S+\s+(\d+)\s", string(ps))
         try
-            run(`kill $m`)
-            print("stopped job $job")
+            println("stopping job $job by cmd $(`kill -9 -$(m.captures[1])`)")
+            run(`kill -9 -$(m.captures[1])`)
+            println("stopped job $job")
             # move files
-            newname = "[STOPFAIL-$(timestamp())]$(basename(s))"
+            newname = "[STOP-$(timestamp())]$job"
+            mv(joinpath(jobstop, "$job.bk"), joinpath(jobroot, "$newname.bk"))
+            println("mv .bk to $newname.bk")
+            if isfile(joinpath(jobroot, job))
+                mv(joinpath(jobroot, job), joinpath(jobroot, newname))
+                println("mv script to $newname")
+            end
+            if isfile(joinpath(jobroot, "$job.log"))
+                mv(joinpath(jobroot, "$job.log"), joinpath(jobroot, "$newname.log"))
+                println("mv log to $newname.log")
+            end
         catch err
-            print("error when stopping $job, message: $err")
+            println("error when stopping $job, message: $err")
+            newname = "[STOPFAIL-$(timestamp())]$job"
+            mv(joinpath(stopjob, "$job.bk"), joinpath(stopjob, "$newname.bk"))
+            println("mv .bk to $newname.bk")
         end
+    else
+        println("already stopped job $job")
+        newname = "[STOPPED-$(timestamp())]$job"
+        # mv file
+        mv(joinpath(stopjob, "$job.bk"), joinpath(stopjob, "$newname.bk"))
+        println("mv .bk to $newname.bk")
     end
 end
 
 function check_stop()
-    stoplist = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh.bk\$")], jobstop)
+    stoplist = glob([Regex("^\\[\\d+-RUN-\\d+-\\d+].*\.sh.bk\$")], jobstop)
     for s in stoplist
-        stopjob(s[1:end-3])
+        stopjob(basename(s)[1:end-3])
     end
 end
 
@@ -133,7 +154,7 @@ end
 function process_job(job, gpu)
     println("processing $job on gpu $gpu")
     # check job type: normal or bk
-    if job[end-2:end] == ".bk"
+    if endswith(job, ".sh.bk")
         jobname = replace(replace(job, r"\[.*\]", ""), ".bk", "")
     else
         jobname = job
