@@ -200,9 +200,7 @@ while true
     if job != nothing
         gpu = nextgpu()
         if gpu != nothing
-            disable_sigint() do
-                process_job(job, gpu)
-            end
+            process_job(job, gpu)
         end
     end
 
