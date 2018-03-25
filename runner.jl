@@ -14,7 +14,7 @@ using Suppressor
 =#
 
 runners = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
-    `ps -aux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*runner.jl'`))), "\n"))
+    `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*runner.jl'`))), "\n"))
 
 if length(runners) == 0
     error("cannot detect self, the programe must be wrong!")
