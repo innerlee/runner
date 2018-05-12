@@ -175,7 +175,7 @@ function process_job(job, gpu)
     println(f, """
 #!/usr/bin/sh
 # redirect output to log file
-$script >> '$jobfile.log' 2>&1
+stdbuf -oL $script >> '$jobfile.log' 2>&1
 # post-process
 if [ \$? -eq 0 ]; then
     DATE=\$(date +%y%m%d"-"%H%M%S)
