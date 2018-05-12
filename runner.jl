@@ -172,7 +172,7 @@ function process_job(job, gpu)
     if length(script) > 2 && script[1] == '"' && script[end] == '"'
         script = strip(script[2:end-1])
     elseif script == ""
-        script = "echo Empty script!\nexit 1"
+        script = "exit 1\necho Empty script!"
     end
     lines = split(script, "\n", keep=false)
     lines[end] = "stdbuf -oL " * lines[end]
