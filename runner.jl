@@ -171,6 +171,8 @@ function process_job(job, gpu)
     script = replace(strip(readstring("$jobfile.bk")), "\$GPU", gpu)
     if length(script) > 2 && script[1] == '"' && script[end] == '"'
         script = strip(script[2:end-1])
+    elseif script == ""
+        script = "echo EMPTY FILE!"
     end
     lines = split(script, "\n", keep=false)
     lines[end] = "stdbuf -oL " * lines[end]
