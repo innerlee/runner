@@ -170,12 +170,16 @@ function process_job(job, gpu)
     f = open(jobfile, "w")
     script = replace(strip(readstring("$jobfile.bk")), "\$GPU", gpu)
     if length(script) > 2 && script[1] == '"' && script[end] == '"'
-        script = script[2:end-1]
+        script = strip(script[2:end-1])
     end
+    lines = split(script, "\n", keep=false)
+    lines[end] = "stdbuf -oL " * lines[end]
+    script = join(lines, "\n")
+
     println(f, """
 #!/usr/bin/sh
 # redirect output to log file
-stdbuf -oL $script >> '$jobfile.log' 2>&1
+$script >> '$jobfile.log' 2>&1
 # post-process
 if [ \$? -eq 0 ]; then
     DATE=\$(date +%y%m%d"-"%H%M%S)
