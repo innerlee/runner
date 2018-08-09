@@ -36,7 +36,7 @@ const logfile = joinpath(joblog, "runner.log")
 mkpath.([jobroot, jobqueue, jobdone, jobstop, jobtrash, joblog])
 
 @suppress Base.println(xs...) = open(f -> (println(f, "[$(now())] ", xs...);
-    println(STDOUT, "[$(now())] ", xs...)), logfile, "a")
+    println(stdout, "[$(now())] ", xs...)), logfile, "a")
 
 println("===== start =====")
 
