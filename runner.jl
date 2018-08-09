@@ -144,7 +144,7 @@ function check_stop()
 end
 
 function check_resume()
-    resumelist = glob([Regex(".*\\.sh.bk\$")], jobstop)
+    resumelist = glob(glob"*.sh.bk", jobresume)
     for s in resumelist
         script = strip(readstring(s))
         if length(script) > 2 && script[1] == '"' && script[end] == '"'
@@ -156,9 +156,10 @@ function check_resume()
             script *= " --restore"
         end
         jobname = basename(s)[1:end-3]
-        f = open(joinpath(jobqueue, "[RESUME-$(timestamp())]$jobname", "w"))
+        f = open(joinpath(jobqueue, "[RESUME-$(timestamp())]$jobname"), "w")
         println(f, script)
         close(f)
+        rm(s)
         println("generate restore script $jobname")
     end
 end
@@ -282,5 +283,5 @@ while true
         end
     end
 
-    sleep(10)
+    sleep(1)
 end
