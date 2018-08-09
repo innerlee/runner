@@ -30,6 +30,7 @@ const jobqueue = joinpath(jobroot, "queue")
 const jobdone = joinpath(jobroot, "done")
 const jobstop = joinpath(jobroot, "stop")
 const jobtrash = joinpath(jobroot, "trash")
+const jobresume = joinpath(jobroot, "resume")
 const joblog = joinpath(jobroot, "log")
 const logfile = joinpath(joblog, "runner.log")
 mkpath.([jobroot, jobqueue, jobdone, jobstop, jobtrash, joblog])
@@ -142,6 +143,26 @@ function check_stop()
     end
 end
 
+function check_resume()
+    resumelist = glob([Regex(".*\\.sh.bk\$")], jobstop)
+    for s in resumelist
+        script = strip(readstring(s))
+        if length(script) > 2 && script[1] == '"' && script[end] == '"'
+            script = strip(script[2:end-1])
+        elseif script == ""
+            script = "exit 1\necho Empty script!"
+        end
+        if !occursin("--restore", script)
+            script *= " --restore"
+        end
+        jobname = basename(s)[1:end-3]
+        f = open(joinpath(jobqueue, "[RESUME-$(timestamp())]$jobname", "w"))
+        println(f, script)
+        close(f)
+        println("generate restore script $jobname")
+    end
+end
+
 """
     process job.
 
@@ -250,6 +271,7 @@ end
 while true
     check_stop()
     check_unknown()
+    check_resume()
 
     job = nextjob()
 
@@ -260,5 +282,5 @@ while true
         end
     end
 
-    sleep(1)
+    sleep(10)
 end
