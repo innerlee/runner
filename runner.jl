@@ -33,7 +33,7 @@ const jobtrash = joinpath(jobroot, "trash")
 const jobresume = joinpath(jobroot, "resume")
 const joblog = joinpath(jobroot, "log")
 const logfile = joinpath(joblog, "runner.log")
-mkpath.([jobroot, jobqueue, jobdone, jobstop, jobtrash, joblog])
+mkpath.([jobroot, jobqueue, jobdone, jobstop, jobtrash, jobresume, joblog])
 
 @suppress Base.println(xs...) = open(f -> (println(f, "[$(now())] ", xs...);
     println(stdout, "[$(now())] ", xs...)), logfile, "a")
@@ -43,8 +43,12 @@ println("===== start =====")
 const ngpu = parse(Int, read(pipeline(`nvidia-smi -L`, `wc -l`), String))
 println("$ngpu GPUs detected.")
 
+RETRY = 0
 if length(ARGS) == 1
     VISIBLE_GPU = parse.(Int, split(ARGS[1], ","))
+elseif length(ARGS) == 2 && args[1] == '--retry'
+    RETRY = parse(Int, ARGS[2])
+    VISIBLE_GPU = collect(0:ngpu-1)
 else
     VISIBLE_GPU = collect(0:ngpu-1)
 end
@@ -199,6 +203,7 @@ function process_job(job, gpu)
     lines = split(script, "\n", keep=false)
     lines[end] = "stdbuf -oL " * lines[end]
     script = join(lines, "\n")
+    ismove =  sum(1 for i in eachmatch(r"ERR", jobname)) < RETRY
 
     println(f, """
 #!/usr/bin/sh
@@ -216,6 +221,9 @@ else
     mv '$jobfile' "$jobroot/[$gpu-ERR-\$DATE]$jobname"
     mv '$jobfile.bk' "$jobroot/[$gpu-ERR-\$DATE]$jobname.bk"
     mv '$jobfile.log' "$jobroot/[$gpu-ERR-\$DATE]$jobname.log"
+    if [ $ismove = true ]; then
+        cp "$jobroot/[$gpu-ERR-\$DATE]$jobname.bk" "$jobresume"
+    fi
     echo FAIL
 fi""")
     close(f)
