@@ -7,14 +7,15 @@
 using Shell
 using Glob
 using Suppressor
+using Dates
 
 #=
 [0-RUN-180321-130035]job-001.sh
 [0-UNKNOWN-180321-130155][0-RUN-180321-130035]job-001.sh
 =#
 
-runners = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
-    `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*runner.jl'`))), "\n"))
+runners = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
+    `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*runner.jl'`)), String), "\n"))
 
 if length(runners) == 0
     error("cannot detect self, the programe must be wrong!")
@@ -38,7 +39,7 @@ mkpath.([jobroot, jobqueue, jobdone, jobstop, jobtrash, joblog])
 
 println("===== start =====")
 
-const ngpu = parse(Int, readstring(pipeline(`nvidia-smi -L`, `wc -l`)))
+const ngpu = parse(Int, read(pipeline(`nvidia-smi -L`, `wc -l`), String))
 println("$ngpu GPUs detected.")
 
 if length(ARGS) == 1
@@ -57,7 +58,7 @@ timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
     an array of gpu status in which `true` means free
 """
 function gpustatus()
-    stats = readstring(`nvidia-smi`)
+    stats = read(`nvidia-smi`, String)
     m = match(r"GPU\s*PID\s*Type\s*Process", stats)
     processes = stats[m.offset:end]
     gpus = trues(ngpu)
@@ -86,7 +87,7 @@ function nextgpu()
     gpus = gpustatus()
     for i in find(gpus)
         i - 1 ∉ VISIBLE_GPU && continue
-        if(length(glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh\$")], jobroot)) == 0)
+        if(length(glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\\.sh\$")], jobroot)) == 0)
             return i - 1
         end
     end
@@ -99,8 +100,8 @@ end
 function stopjob(job)
     println("try stop $job")
     jobstr = replace(replace(job, "[", "\\["), "]", "\\]")
-    ps = filter(x -> strip(x) != "", split(readstring(ignorestatus(pipeline(
-        `ps -aux`, `grep $jobstr`))), "\n"))
+    ps = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
+        `ps -aux`, `grep $jobstr`)), String), "\n"))
     if length(ps) == 1
         m = match(r"\S+\s+(\d+)\s", string(ps))
         try
@@ -135,7 +136,7 @@ function stopjob(job)
 end
 
 function check_stop()
-    stoplist = glob([Regex("^\\[\\d+-RUN-\\d+-\\d+].*\.sh.bk\$")], jobstop)
+    stoplist = glob([Regex("^\\[\\d+-RUN-\\d+-\\d+].*\\.sh.bk\$")], jobstop)
     for s in stoplist
         stopjob(basename(s)[1:end-3])
     end
@@ -214,7 +215,7 @@ function check_unknown()
     stats = gpustatus()
     for (i, s) in enumerate(stats)
         if s
-            suspects = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\.sh\$")], jobroot)
+            suspects = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\\.sh\$")], jobroot)
             if length(suspects) > 0
                 ticks[i] -= 1
                 if ticks[i] == 0
