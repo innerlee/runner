@@ -90,7 +90,7 @@ end
 """
 function nextgpu()
     gpus = gpustatus()
-    for i in find(gpus)
+    for i in findall(gpus)
         i - 1 ∉ VISIBLE_GPU && continue
         if(length(glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\\.sh\$")], jobroot)) == 0)
             return i - 1
@@ -104,7 +104,7 @@ end
 """
 function stopjob(job)
     println("try stop $job")
-    jobstr = replace(replace(job, "[", "\\["), "]", "\\]")
+    jobstr = replace(replace(job, "[" => "\\["), "]" => "\\]")
     ps = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
         `ps -aux`, `grep $jobstr`)), String), "\n"))
     if length(ps) == 1
@@ -150,7 +150,7 @@ end
 function check_resume()
     resumelist = glob(glob"*.sh.bk", jobresume)
     for s in resumelist
-        script = strip(readstring(s))
+        script = strip(read(s, String))
         if length(script) > 2 && script[1] == '"' && script[end] == '"'
             script = strip(script[2:end-1])
         elseif script == ""
@@ -182,7 +182,7 @@ function process_job(job, gpu)
     println("processing $job on gpu $gpu")
     # check job type: normal or bk
     if endswith(job, ".sh.bk")
-        jobname = replace(replace(job, r"\[.*\]", ""), ".bk", "")
+        jobname = replace(replace(job, r"\[.*\]" => ""), ".bk" => "")
     else
         jobname = job
     end
@@ -195,16 +195,16 @@ function process_job(job, gpu)
 
     # build running script
     f = open(jobfile, "w")
-    script = replace(strip(readstring("$jobfile.bk")), "\$GPU", gpu)
+    script = replace(strip(read("$jobfile.bk", String)), "\$GPU" => gpu)
     if length(script) > 2 && script[1] == '"' && script[end] == '"'
         script = strip(script[2:end-1])
     elseif script == ""
         script = "exit 1\necho Empty script!"
     end
-    lines = split(script, "\n", keep=false)
+    lines = split(script, "\n", keepempty=false)
     lines[end] = "stdbuf -oL " * lines[end]
     script = join(lines, "\n")
-    ismove =  sum(1 for i in eachmatch(r"ERR", jobname)) < RETRY
+    ismove = length(collect(eachmatch(r"ERR", jobname))) < RETRY
 
     println(f, """
 #!/usr/bin/sh
