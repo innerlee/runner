@@ -46,7 +46,7 @@ println("$ngpu GPUs detected.")
 RETRY = 0
 if length(ARGS) == 1
     VISIBLE_GPU = parse.(Int, split(ARGS[1], ","))
-elseif length(ARGS) == 2 && args[1] == "--retry"
+elseif length(ARGS) == 2 && ARGS[1] == "--retry"
     RETRY = parse(Int, ARGS[2])
     VISIBLE_GPU = collect(0:ngpu-1)
 else
