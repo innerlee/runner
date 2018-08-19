@@ -102,7 +102,7 @@ end
 """
     stop a job by throwing its .bk file to stop folder.
 """
-function stopjob(job)
+function stop_job(job)
     println("try stop $job")
     jobstr = replace(replace(job, "[" => "\\["), "]" => "\\]")
     ps = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
@@ -128,14 +128,14 @@ function stopjob(job)
         catch err
             println("error when stopping $job, message: $err")
             newname = "[STOPFAIL-$(timestamp())]$job"
-            mv(joinpath(stopjob, "$job.bk"), joinpath(stopjob, "$newname.bk"))
+            mv(joinpath(jobstop, "$job.bk"), joinpath(jobstop, "$newname.bk"))
             println("mv .bk to $newname.bk")
         end
     else
         println("already stopped job $job")
         newname = "[STOPPED-$(timestamp())]$job"
         # mv file
-        mv(joinpath(stopjob, "$job.bk"), joinpath(stopjob, "$newname.bk"))
+        mv(joinpath(jobstop, "$job.bk"), joinpath(jobstop, "$newname.bk"))
         println("mv .bk to $newname.bk")
     end
 end
@@ -143,7 +143,7 @@ end
 function check_stop()
     stoplist = glob([Regex("^\\[\\d+-RUN-\\d+-\\d+].*\\.sh.bk\$")], jobstop)
     for s in stoplist
-        stopjob(basename(s)[1:end-3])
+        stop_job(basename(s)[1:end-3])
     end
 end
 
