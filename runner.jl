@@ -1,17 +1,12 @@
 #!/usr/bin/env julia
-# Julia v0.6.2
-# Pkg.update()
-# Pkg.clone("git@github.com:innerlee/Shell.jl")
-# Pkg.add("Glob")
-# Pkg.add("Suppressor")
 using Shell
 using Glob
 using Suppressor
 using Dates
 
 #=
-[0-RUN-180321-130035]job-001.sh
-[0-UNKNOWN-180321-130155][0-RUN-180321-130035]job-001.sh
+[0-RUN03211300]job-001.sh
+[0-ORZ03211301][0-RUN03211300]job-001.sh
 =#
 
 runners = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
@@ -54,10 +49,10 @@ else
 end
 println("visible gpu: $(VISIBLE_GPU).")
 
-const CLEAN_TICK = 30
+const CLEAN_TICK = 100
 const ticks = CLEAN_TICK * ones(ngpu)
 
-timestamp() = Dates.format(now(), "yymmdd-HHMMSS")
+timestamp() = Dates.format(now(), "mmddHHMM")
 
 """
     an array of gpu status in which `true` means free
@@ -92,7 +87,7 @@ function nextgpu()
     gpus = gpustatus()
     for i in findall(gpus)
         i - 1 ∉ VISIBLE_GPU && continue
-        if(length(glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\\.sh\$")], jobroot)) == 0)
+        if(length(glob([Regex("^\\[$(i-1)-RUN\\d+].*\\.sh\$")], jobroot)) == 0)
             return i - 1
         end
     end
@@ -114,7 +109,7 @@ function stop_job(job)
             run(`kill -9 -$(m.captures[1])`)
             println("stopped job $job")
             # move files
-            newname = "[STOP-$(timestamp())]$job"
+            newname = "[STOP$(timestamp())]$job"
             mv(joinpath(jobstop, "$job.bk"), joinpath(jobroot, "$newname.bk"))
             println("mv .bk to $newname.bk")
             if isfile(joinpath(jobroot, job))
@@ -127,13 +122,13 @@ function stop_job(job)
             end
         catch err
             println("error when stopping $job, message: $err")
-            newname = "[STOPFAIL-$(timestamp())]$job"
+            newname = "[STOPFAIL$(timestamp())]$job"
             mv(joinpath(jobstop, "$job.bk"), joinpath(jobstop, "$newname.bk"))
             println("mv .bk to $newname.bk")
         end
     else
         println("already stopped job $job")
-        newname = "[STOPPED-$(timestamp())]$job"
+        newname = "[STOPPED$(timestamp())]$job"
         # mv file
         mv(joinpath(jobstop, "$job.bk"), joinpath(jobstop, "$newname.bk"))
         println("mv .bk to $newname.bk")
@@ -141,7 +136,7 @@ function stop_job(job)
 end
 
 function check_stop()
-    stoplist = glob([Regex("^\\[\\d+-RUN-\\d+-\\d+].*\\.sh.bk\$")], jobstop)
+    stoplist = glob([Regex("^\\[\\d+-RUN\\d+].*\\.sh.bk\$")], jobstop)
     for s in stoplist
         stop_job(basename(s)[1:end-3])
     end
@@ -160,10 +155,10 @@ function check_resume()
             script *= " --restore"
         end
         jobname = basename(s)[1:end-3]
-        f = open(joinpath(jobqueue, "[RESUME-$(timestamp())]$jobname"), "w")
+        f = open(joinpath(jobqueue, "[RES$(timestamp())]$jobname"), "w")
         println(f, script)
         close(f)
-        rm(s)
+        mv(s, joinpath(jobroot, basename(s)))
         println("generate restore script $jobname")
     end
 end
@@ -186,7 +181,7 @@ function process_job(job, gpu)
     else
         jobname = job
     end
-    jobname = "[$gpu-RUN-$(timestamp())]$jobname"
+    jobname = "[$gpu-RUN$(timestamp())]$jobname"
     jobfile = joinpath(jobroot, jobname)
 
     # backup script
@@ -212,18 +207,18 @@ function process_job(job, gpu)
 $script >> '$jobfile.log' 2>&1
 # post-process
 if [ \$? -eq 0 ]; then
-    DATE=\$(date +%y%m%d"-"%H%M%S)
-    mv '$jobfile' "$jobdone/[DONE-\$DATE]$jobname"
-    mv '$jobfile.bk' "$jobdone/[DONE-\$DATE]$jobname.bk"
-    mv '$jobfile.log' "$jobdone/[DONE-\$DATE]$jobname.log"
+    DATE=\$(date +%m%d%H%M)
+    mv '$jobfile' "$jobdone/[DONE\$DATE]$jobname"
+    mv '$jobfile.bk' "$jobdone/[DONE\$DATE]$jobname.bk"
+    mv '$jobfile.log' "$jobdone/[DONE\$DATE]$jobname.log"
     echo OK
 else
-    DATE=\$(date +%y%m%d"-"%H%M%S)
-    mv '$jobfile' "$jobroot/[$gpu-ERR-\$DATE]$jobname"
-    mv '$jobfile.bk' "$jobroot/[$gpu-ERR-\$DATE]$jobname.bk"
-    mv '$jobfile.log' "$jobroot/[$gpu-ERR-\$DATE]$jobname.log"
+    DATE=\$(date +%m%d%H%M)
+    mv '$jobfile' "$jobroot/[$gpu-ERR\$DATE]$jobname"
+    mv '$jobfile.bk' "$jobroot/[$gpu-ERR\$DATE]$jobname.bk"
+    mv '$jobfile.log' "$jobroot/[$gpu-ERR\$DATE]$jobname.log"
     if [ $ismove = true ]; then
-        cp "$jobroot/[$gpu-ERR-\$DATE]$jobname.bk" "$jobresume"
+        cp "$jobroot/[$gpu-ERR\$DATE]$jobname.bk" "$jobresume"
     fi
     echo FAIL
 fi""")
@@ -245,13 +240,13 @@ function check_unknown()
     stats = gpustatus()
     for (i, s) in enumerate(stats)
         if s
-            suspects = glob([Regex("^\\[$(i-1)-RUN-\\d+-\\d+].*\\.sh\$")], jobroot)
+            suspects = glob([Regex("^\\[$(i-1)-RUN\\d+].*\\.sh\$")], jobroot)
             if length(suspects) > 0
                 ticks[i] -= 1
                 if ticks[i] == 0
                     for s in suspects
                         println("unknown detected $s")
-                        newname = "[$(i-1)-UNKNOWN-$(timestamp())]$(basename(s))"
+                        newname = "[$(i-1)-ORZ$(timestamp())]$(basename(s))"
                         # rename to unknown
                         mv(s, joinpath(jobroot, newname))
                         println("rename script to $newname")
