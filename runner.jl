@@ -158,7 +158,7 @@ function check_resume()
         f = open(joinpath(jobqueue, "[RES$(timestamp())]$jobname"), "w")
         println(f, script)
         close(f)
-        rm(s)
+        mv(s, joinpath(jobroot, basename(s)))
         println("generate restore script $jobname")
     end
 end
