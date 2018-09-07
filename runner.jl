@@ -44,6 +44,9 @@ if length(ARGS) == 1
 elseif length(ARGS) == 2 && ARGS[1] == "--retry"
     RETRY = parse(Int, ARGS[2])
     VISIBLE_GPU = collect(0:ngpu-1)
+elseif length(ARGS) == 4 && ARGS[1] == "--retry" && ARGS[3] == "--gpu"
+    RETRY = parse(Int, ARGS[2])
+    VISIBLE_GPU = parse.(Int, split(ARGS[4], ","))
 else
     VISIBLE_GPU = collect(0:ngpu-1)
 end
