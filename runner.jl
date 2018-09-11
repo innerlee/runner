@@ -54,6 +54,7 @@ println("visible gpu: $(VISIBLE_GPU).")
 
 const CLEAN_TICK = 100
 const ticks = CLEAN_TICK * ones(ngpu)
+const MAX_BRACKETS = 5
 
 timestamp() = Dates.format(now(), "mmddHHMM")
 
@@ -185,6 +186,12 @@ function process_job(job, gpu)
         jobname = job
     end
     jobname = "[$gpu-RUN$(timestamp())]$jobname"
+    brackets = collect(eachmatch(r"\[.*?\]", jobname))
+    if length(brackets) > MAX_BRACKETS
+        cutstart = brackets[MAX_BRACKETS + 1].offset
+        cutend = brackets[end].offset + length(brackets[end].match) - 1
+        jobname = jobname[1:cutstart-1] * jobname[cutend+1:end]
+    end
     jobfile = joinpath(jobroot, jobname)
 
     # backup script
