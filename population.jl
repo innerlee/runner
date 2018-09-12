@@ -22,6 +22,7 @@ const TOTAL_STAGE = ceil(Int, CONFIG["total_steps"] / CONFIG["step_interval"])
 
 const populationroot = expanduser("./jobs/population")
 const jobdeploy = expanduser("~/jobs/queue")
+const jobdone = expanduser("~/jobs/done")
 const jobroot = joinpath(populationroot, CONFIG["name"])
 const jobscript = joinpath(jobroot, "script")
 const jobresult = joinpath(jobroot, "result") # results
@@ -39,6 +40,7 @@ function next_stage(config)
     # check history folder, which contais info of each stage
     id = 1
     vip = config["vip"]
+    weight_dir = ""
     historyfiles = glob(joinpath(jobhistory, "stage????.json"))
     if length(historyfiles) > 0
         id = maximum(parse.(Int, getindex.(basename.(historyfiles), [6:9])))
@@ -56,14 +58,18 @@ function next_stage(config)
             stage["best_persion"] = argmax(rewards)
             stage["best_reward"] = stage["population"][stage["best_persion"]]["reward"]
             stage["next_vip"] = stage["population"][stage["best_persion"]]["config"]
+            stage["next_weight_dir"] = stage["population"][stage["best_persion"]]["weight_dir"]
             save_stage(stage)
 
             vip = stage["next_vip"]
+            weight_dir = stage["next_weight_dir"]
             println("vip $vip selected for its reward $(maximum(rewards))")
             id += 1
         else
             println("stage $id unfinished, continuing...")
-            # return nothing # todo: delete this
+            println("stage $id current status:\n",
+                    join(["$(p["runname"]): $(p["status"]), config [$(join(p["config"], ", "))]"
+                          for p in stage["population"]], "\n"))
             return stage
         end
     end
@@ -78,7 +84,8 @@ function next_stage(config)
     stage = Dict(
         "id" => id,
         "vip" => vip,
-        "max_update" => config["step_interval"] * id
+        "max_update" => config["step_interval"] * id,
+        "weight_dir" => weight_dir
     )
 
     # generate population
@@ -121,6 +128,7 @@ function process_population(stage, i, config)
         lines[end] *= " --updates $(config["step_interval"])"
         lines[end] *= " --max_update $(stage["max_update"])"
         lines[end] *= " --run_id $(p["runname"])"
+        id > 1 && (lines[end] *= " --remote_restore $(stage["weight_dir"])")
         script = join(lines, "\n")
 
         scriptfilename = joinpath(jobscript, "$(p["runname"]).sh")
@@ -130,10 +138,15 @@ function process_population(stage, i, config)
         p["status"] = "deployed"
     elseif p["status"] == "deployed"
         # check if done, if not, whether in queue or in jobroot, else print a warn
-        p["status"] = "deployed"
-        p["status"] = "runover"
+        doneshfile = glob("\\[DONE*\\]$(p["runname"]).sh", jobdone)
+        if length(doneshfile) >= 1
+            p["status"] = "runover"
+        else
+            return false
+        end
     elseif p["status"] == "runover"
         # summaryise
+        p["weight_dir"] = "$weight(rand(Int))"
         p["reward"] = rand(1:10)
         p["status"] = "done"
     else
