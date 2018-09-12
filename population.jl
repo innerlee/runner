@@ -4,11 +4,24 @@ using Glob
 using Suppressor
 using Dates
 
+runners = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
+    `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*population.jl'`)), String), "\n"))
+
+if length(runners) == 0
+    error("cannot detect self, the programe must be wrong!")
+elseif length(runners) > 1
+    println(join(runners, "\n"))
+    warn("population already running, exiting...")
+    exit()
+end
+
+
 CONFIG_FILE = "./config.json"
 CONFIG = JSON.parse(read(CONFIG_FILE, String))
 const TOTAL_STAGE = ceil(Int, CONFIG["total_steps"] / CONFIG["step_interval"])
 
 const populationroot = expanduser("./jobs/population")
+const jobdeploy = expanduser("~/jobs/queue")
 const jobroot = joinpath(populationroot, CONFIG["name"])
 const jobscript = joinpath(jobroot, "script")
 const jobresult = joinpath(jobroot, "result") # results
@@ -40,7 +53,12 @@ function next_stage(config)
         if all([p["status"] == "done" for p in stage["population"]])
             rewards = [p["reward"] for p in stage["population"]]
             println("all population done in stage $id, rewards $rewards")
-            vip = stage["population"][argmax(rewards)]["config"]
+            stage["best_persion"] = argmax(rewards)
+            stage["best_reward"] = stage["population"][stage["best_persion"]]["reward"]
+            stage["next_vip"] = stage["population"][stage["best_persion"]]["config"]
+            save_stage(stage)
+
+            vip = stage["next_vip"]
             println("vip $vip selected for its reward $(maximum(rewards))")
             id += 1
         else
@@ -60,6 +78,7 @@ function next_stage(config)
     stage = Dict(
         "id" => id,
         "vip" => vip,
+        "max_update" => config["step_interval"] * id
     )
 
     # generate population
@@ -83,12 +102,31 @@ end
     population status: start | deployed | runover | done
     call this function to go to next state, return the result state
 """
-function process_population(stage, i)
+function process_population(stage, i, config)
+    id = stage["id"]
     p = stage["population"][i]
     if p["status"] == "done"
         return true
     elseif p["status"] == "start"
         # gen script and deploy
+        p["runname"] = "$(config["name"])-stage$(lpad(id, 4, "0"))-person$(lpad(i, 3, "0"))"
+        template = read(config["template"], String)
+        if length(template) > 2 && template[1] == '"' && template[end] == '"'
+            template = strip(template[2:end-1])
+        elseif template == ""
+            template = "exit 1\necho Empty template!"
+        end
+        lines = strip.(split(template, "\n", keepempty=false))
+        lines[end] *= " --maps '{$(join(["$m: $n" for (m, n) in zip(config["envs"], p["config"])], ", "))}'"
+        lines[end] *= " --updates $(config["step_interval"])"
+        lines[end] *= " --max_update $(stage["max_update"])"
+        lines[end] *= " --run_id $(p["runname"])"
+        script = join(lines, "\n")
+
+        scriptfilename = joinpath(jobscript, "$(p["runname"]).sh")
+        open(f -> println(f, script), scriptfilename, "w")
+        cp(scriptfilename, joinpath(jobdeploy, "$(p["runname"]).sh"), force=true)
+
         p["status"] = "deployed"
     elseif p["status"] == "deployed"
         # check if done, if not, whether in queue or in jobroot, else print a warn
@@ -99,17 +137,13 @@ function process_population(stage, i)
         p["reward"] = rand(1:10)
         p["status"] = "done"
     else
-        println("warn: stage $(stage["id"]) population $i in unknown state")
+        println("warn: stage $id population $i in unknown state")
     end
 
-    println("stage $(stage["id"]) population $i goto state $(p["status"])")
+    println("stage $id population $i goto state $(p["status"])")
     return false
 end
 
-
-function gen_scripts(stage, config)
-
-end
 
 #--------------------------------------------------
 
@@ -119,12 +153,12 @@ function main(config)
     # get where we are
     stage = next_stage(config) # fill vip for this stage, error if cannot
     while stage != nothing
-        println("now on stage $(stage["id"]) / TOTAL_STAGE")
+        println("now on stage $(stage["id"]) / $TOTAL_STAGE")
         n = length(stage["population"])
         while true
             n_done = 0
             for i in 1:n
-                n_done += process_population(stage, i)
+                n_done += process_population(stage, i, config)
                 save_stage(stage)
                 sleep(0.5)
             end
