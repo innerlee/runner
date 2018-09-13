@@ -74,7 +74,8 @@ function next_stage(config)
         else
             println("stage $id unfinished, continuing...")
             println("stage $id current status:\n",
-                    join(["$(p["runname"]): $(p["status"]), config [$(join(p["config"], ", "))]"
+                    join(["$(p["runname"]): $(p["status"]), config [$(join(p["config"], ", "))]" *
+                          (p["status"] == "done" ? ", reward $(p["reward"])" : "")
                           for p in stage["population"]], "\n"))
             return stage
         end
