@@ -191,7 +191,7 @@ function main(config)
     # get where we are
     stage = next_stage(config) # fill vip for this stage, error if cannot
     while stage != nothing
-        println("now on stage $(stage["id"]) / $TOTAL_STAGE")
+        println("now on stage $(stage["id"]) / $TOTAL_STAGE, updates from $(stage["max_update"] - config["step_interval"]) to $(stage["max_update"])")
         n = length(stage["population"])
         while true
             n_done = 0
