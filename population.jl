@@ -3,6 +3,7 @@ using JSON
 using Glob
 using Suppressor
 using Dates
+using Statistics
 
 runners = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
     `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*population.jl'`)), String), "\n"))
@@ -66,7 +67,7 @@ function next_stage(config)
 
             vip = stage["next_vip"]
             weight_dir = stage["next_weight_dir"]
-            println("vip $vip selected for its reward $(maximum(rewards))")
+            println("vip $vip selected for its average reward $(maximum(rewards))")
             id += 1
         else
             println("stage $id unfinished, continuing...")
@@ -152,12 +153,11 @@ function process_population(stage, i, config)
         # find log files
         logfiles = glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone)
         @assert length(logfiles) >= 1
-        p["weight_dir"] = strip(split(read(pipeline(``, `grep 'weights are saved at'`, `cud -b 22-`), String), "\n")[1])
+        p["weight_dir"] = strip(split(read(pipeline(`cat $(logfiles[1])`, `grep 'weights are saved at'`, `cut -b 22-`), String), "\n")[1])
         rewards = []
         for f in logfiles
-            append!(p["rewards"], parse.(Int, read(pipeline(`cat $(logfiles[1])`,
-                                                            `grep $(config["envs"][1] * "_rew_mean")`,
-                                                            `cut -d' ' -f3`), String)))
+            r = read(pipeline(`cat $(logfiles[1])`, `grep $(config["envs"][1] * "_rew_mean")`, `cut -d'|' -f3`), String)
+            append!(rewards, parse.(Float32, split(r, "\n", keepempty=false)))
         end
         p["rewards"] = join(rewards, ",")
         p["reward"] = mean(rewards)
@@ -166,6 +166,7 @@ function process_population(stage, i, config)
                 isfile(g) && mv(g, joinpath(jobresult, basename(g)))
             end
         end
+        println("stage $id population $i mean reward $(mean(rewards)), std $(std(rewards)), max $(maximum(rewards)), min $(minimum(rewards)), count $(length(rewards))")
         p["status"] = "done"
     else
         println("warn: stage $id population $i in unknown state")
