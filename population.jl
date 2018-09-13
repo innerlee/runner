@@ -15,8 +15,11 @@ elseif length(runners) > 1
     exit()
 end
 
+if length(ARGS) != 1
+    @error "please specify config file"
+end
 
-CONFIG_FILE = "./config.json"
+CONFIG_FILE = ARGS[1]
 CONFIG = JSON.parse(read(CONFIG_FILE, String))
 const TOTAL_STAGE = ceil(Int, CONFIG["total_steps"] / CONFIG["step_interval"])
 
