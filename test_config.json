@@ -1,5 +1,5 @@
 {
-    "name": "population_test2",
+    "name": "population_test3",
     "template": "./population_test.sh",
     "envs": [
         "BuildMarines_13-17min",
