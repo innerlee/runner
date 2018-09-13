@@ -1,0 +1,29 @@
+{
+    "name": "population_baseline_sz16_test1",
+    "template": "./template_baseline_sz16.sh",
+    "envs": [
+        "BuildMarines_13-17min"
+    ],
+    "vip": [16],
+    "stages": [{
+        "id": 1,
+        "vip": [16],
+        "population": [{
+            "i": 1,
+            "status": "start",
+            "max_update": 1000,
+            "config": [16],
+            "run_name": "abc-stage0001-person001",
+            "weight_dir": "",
+            "reward": 0,
+            "rewards": "0"
+        }]
+    }],
+    "step_interval": 500,
+    "total_steps": 2000,
+    "lower_bound": [1],
+    "upper_bound": [100],
+    "pool": 4,
+    "variations": [],
+    "additional_variations": []
+}
