@@ -127,7 +127,7 @@ function process_population(stage, i, config)
             template = "exit 1\necho Empty template!"
         end
         lines = strip.(split(template, "\n", keepempty=false))
-        lines[end] *= " --maps '{$(join(["$m: $n" for (m, n) in zip(config["envs"], p["config"])], ", "))}'"
+        lines[end] *= " --maps '{$(join(["\"$m\": $n" for (m, n) in zip(config["envs"], p["config"])], ", "))}'"
         lines[end] *= " --updates $(config["step_interval"])"
         lines[end] *= " --max_update $(stage["max_update"])"
         lines[end] *= " --run_id $(p["runname"])"
