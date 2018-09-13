@@ -146,8 +146,23 @@ function process_population(stage, i, config)
         end
     elseif p["status"] == "runover"
         # summaryise
-        p["weight_dir"] = "$weight(rand(Int))"
-        p["reward"] = rand(1:10)
+        # find log files
+        logfiles = glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone)
+        @assert length(logfiles) >= 1
+        p["weight_dir"] = strip(split(read(pipeline(``, `grep 'weights are saved at'`, `cud -b 22-`), String), "\n")[1])
+        rewards = []
+        for f in logfiles
+            append!(p["rewards"], parse.(Int, read(pipeline(`cat $(logfiles[1])`,
+                                                            `grep $(config["envs"][1] * "_rew_mean")`,
+                                                            `cut -d' ' -f3`), String)))
+        end
+        p["rewards"] = join(rewards, ",")
+        p["reward"] = mean(rewards)
+        for f in logfiles
+            for g in [f, f[1:end-4], f[1:end-4] * ".bk"]
+                isfile(g) && mv(g, joinpath(jobresult, basename(g)))
+            end
+        end
         p["status"] = "done"
     else
         println("warn: stage $id population $i in unknown state")
