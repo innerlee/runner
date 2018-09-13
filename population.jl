@@ -5,6 +5,7 @@ using Suppressor
 using Dates
 using Statistics
 using Random
+using LinearAlgebra
 
 runners = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
     `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*population.jl'`)), String), "\n"))
@@ -38,6 +39,8 @@ mkpath.([populationroot, jobroot, jobscript, jobresult, jobhistory])
 
 stage_history_path(id) = joinpath(jobhistory, "stage$(lpad(id, 4, "0")).json")
 save_stage(stage) = open(f -> println(f, json(stage, 4)), stage_history_path(stage["id"]), "w")
+vec_str(v) = "[$(join(v, ", "))]"
+weighted_mean(r) = round(dot(r, normalize([0.95^i for i in length(r):-1:1], 1)), digits=4)
 
 @suppress Base.println(xs...) = open(f -> (println(f, "[$(now())] ", xs...);
     println(stdout, "[$(now())] ", xs...)), logfile, "a")
@@ -70,12 +73,12 @@ function next_stage(config)
 
             vip = stage["next_vip"]
             weight_dir = stage["next_weight_dir"]
-            println("VIP person $(vip_id) [$(join(vip, ", "))] selected for its average reward $(maximum(rewards))")
+            println("VIP person $(vip_id) $(vec_str(vip)) selected for its average reward $(maximum(rewards))")
             id += 1
         else
             println("stage $id unfinished, continuing...")
             println("stage $id current status:\n",
-                    join(["$(p["runname"]): $(p["status"]), config [$(join(p["config"], ", "))]" *
+                    join(["$(p["runname"]): $(p["status"]), config $(vec_str(p["config"]))" *
                           (p["status"] == "done" ? ", reward $(p["reward"])" : "")
                           for p in stage["population"]], "\n"))
             return stage
@@ -111,7 +114,7 @@ function next_stage(config)
         return nothing
     end
 
-    stage["population"] = Dict.(["status" => "start"], Pair.("config", population))
+    stage["population"] = Dict.(Pair.("i", 1:length(population)), ["status" => "start"], Pair.("config", population))
 
     # save
     save_stage(stage)
@@ -142,7 +145,7 @@ function process_population(stage, i, config)
         lines[end] *= " --maps '{$(join(["\"$m\": $n" for (m, n) in zip(config["envs"], p["config"])], ", "))}'"
         lines[end] *= " --max_update $(stage["max_update"])"
         lines[end] *= " --run_id $(p["runname"])"
-        lines[end] *= " --save_interval $(min(500, ceil(Int, config["step_interval"] / 4)))"
+        lines[end] *= " --save_interval $(min(250, ceil(Int, config["step_interval"] / 4)))"
         lines[end] *= " --num_snapshot 1"
         id > 1 && (lines[end] *= " --remote_restore $(stage["weight_dir"])")
         script = join(lines, "\n")
@@ -171,17 +174,18 @@ function process_population(stage, i, config)
         p["weight_dir"] = strip(split(read(pipeline(`cat $(logfiles[1])`, `grep 'weights are saved at'`, `cut -b 22-`), String), "\n")[1])
         rewards = []
         for f in logfiles
-            r = read(pipeline(`cat $(logfiles[1])`, `grep $(config["envs"][1] * "_rew_mean")`, `cut -d'|' -f3`), String)
+            r = read(pipeline(`cat $f`, `grep $(config["envs"][1] * "_rew_mean")`, `cut -d'|' -f3`), String)
             append!(rewards, parse.(Float32, split(r, "\n", keepempty=false)))
         end
         p["rewards"] = join(rewards, ",")
-        p["reward"] = mean(rewards)
+        p["reward"] = weighted_mean(rewards)
         for f in logfiles
             for g in [f, f[1:end-4], f[1:end-4] * ".bk"]
                 isfile(g) && mv(g, joinpath(jobresult, basename(g)))
             end
         end
-        println("stage $id population $i mean reward $(mean(rewards)), std $(std(rewards)), max $(maximum(rewards)), min $(minimum(rewards)), count $(length(rewards))")
+        println("stage $id population $i config $(vec_str(p["config"])), ",
+                "mean reward $(mean(rewards)), std $(std(rewards)), max $(maximum(rewards)), min $(minimum(rewards)), count $(length(rewards))")
         p["status"] = "done"
     else
         println("warn: stage $id population $i in unknown state")
@@ -198,7 +202,7 @@ function main(config)
     println("whaaa! a new day!")
     println("config file $CONFIG_FILE loaded\n", json(config))
     # get where we are
-    stage = next_stage(config) # fill vip for this stage, error if cannot
+    stage = next_stage(config)
     while stage != nothing
         println("now on stage $(stage["id"]) / $TOTAL_STAGE, updates from $(stage["max_update"] - config["step_interval"]) to $(stage["max_update"])")
         n = length(stage["population"])
@@ -211,7 +215,7 @@ function main(config)
             end
             n_done == length(stage["population"]) && break
         end
-        stage = next_stage(config) # fill vip for this stage, error if cannot
+        stage = next_stage(config)
     end
 end
 
