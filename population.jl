@@ -163,9 +163,9 @@ function process_population(stage, i, config)
     elseif p["status"] == "runover"
         # summaryise
         # find log files
-        logfiles = vcat(glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone),
-                        glob("\\[STOP*\\]$(p["runname"]).sh.log", jobs),
-                        glob("\\[?-ERR*\\]$(p["runname"]).sh.log", jobs))
+        logfiles = unique(vcat(glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone),
+                               glob("\\[STOP*\\]$(p["runname"]).sh.log", jobs),
+                               glob("\\[?-ERR*\\]$(p["runname"]).sh.log", jobs)))
 
         @assert length(logfiles) >= 1
         p["weight_dir"] = strip(split(read(pipeline(`cat $(logfiles[1])`, `grep 'weights are saved at'`, `cut -b 22-`), String), "\n")[1])
