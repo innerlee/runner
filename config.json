@@ -1,5 +1,5 @@
 {
-    "name": "population_test1",
+    "name": "population_version2",
     "template": "./population_test.sh",
     "envs": [
         "BuildMarines_13-17min",
@@ -24,7 +24,7 @@
         }]
     }],
     "step_interval": 1000,
-    "total_steps": 3000,
+    "total_steps": 100000,
     "lower_bound": [4, 0, 0, 0],
     "upper_bound": [100, 100, 100, 100],
     "variations": [
