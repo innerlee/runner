@@ -1,6 +1,6 @@
 {
-    "name": "population_version2",
-    "template": "./template_version2.sh",
+    "name": "population_version2_sz16",
+    "template": "./template_version2_sz16.sh",
     "envs": [
         "BuildMarines_13-17min",
         "BuildMarinesA_4-6min_RP",
@@ -23,8 +23,8 @@
             "reward_std": 0
         }]
     }],
-    "step_interval": 1000,
-    "total_steps": 100000,
+    "step_interval": 2000,
+    "total_steps": 200000,
     "lower_bound": [8, 0, 0, 0],
     "upper_bound": [100, 100, 100, 100],
     "pool": 16,
