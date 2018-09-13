@@ -142,7 +142,7 @@ function process_population(stage, i, config)
         lines[end] *= " --maps '{$(join(["\"$m\": $n" for (m, n) in zip(config["envs"], p["config"])], ", "))}'"
         lines[end] *= " --max_update $(stage["max_update"])"
         lines[end] *= " --run_id $(p["runname"])"
-        liens[end] *= " --save_interval $(min(500, ceil(Int, config["step_interval"] / 4)))"
+        lines[end] *= " --save_interval $(min(500, ceil(Int, config["step_interval"] / 4)))"
         lines[end] *= " --num_snapshot 1"
         id > 1 && (lines[end] *= " --remote_restore $(stage["weight_dir"])")
         script = join(lines, "\n")
