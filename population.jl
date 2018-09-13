@@ -4,6 +4,7 @@ using Glob
 using Suppressor
 using Dates
 using Statistics
+using Random
 
 runners = filter(x -> strip(x) != "", split(read(ignorestatus(pipeline(
     `ps -U $(ENV["USER"]) -ux`, `grep '[0-9]*:[0-9]*\s*julia\s*.*population.jl'`)), String), "\n"))
@@ -98,6 +99,13 @@ function next_stage(config)
     # generate population
     population = filter(p -> all(p .<= config["upper_bound"]) && all(p .>= config["lower_bound"]),
                         [vip] .+ config["variations"])
+    if length(population) < config["pool"]
+        popul2 = filter(p -> all(p .<= config["upper_bound"]) && all(p .>= config["lower_bound"]),
+                        [vip] .+ config["additional_variations"])
+        population = vcat(population, popul2[randperm(length(popul2))], repeat([vip], config["pool"]))[1:config["pool"]]
+    end
+    @assert length(population) == config["pool"]
+
     if length(population) == 0
         println("no population candidate, exiting")
         return nothing
