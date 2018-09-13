@@ -1,2 +1,2 @@
 cd /home/lizz/dev/pysc2-rl-killer
-python main.py --gpu $GPU --work_dir /home/lizz/population --sz 16 --envs 16 --render 0 --lr 0.00001 --vf_coef 0.25 --ent_coef 0.0001 --discount 0.99 --clip_grads 1 --save_interval 500 --num_snapshot 4 --optimizer adam --beta1 0.9 --beta2 0.999 --step_mul 8
+python main.py --gpu $GPU --work_dir /home/lizz/population --sz 16 --envs 16 --render 0 --lr 0.00001 --vf_coef 0.25 --ent_coef 0.0001 --discount 0.99 --clip_grads 1 --optimizer adam --beta1 0.9 --beta2 0.999 --step_mul 8
