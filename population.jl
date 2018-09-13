@@ -27,6 +27,7 @@ const TOTAL_STAGE = ceil(Int, CONFIG["total_steps"] / CONFIG["step_interval"])
 const populationroot = expanduser("./jobs/population")
 const jobdeploy = expanduser("~/jobs/queue")
 const jobdone = expanduser("~/jobs/done")
+const jobs = expanduser("~/jobs")
 const jobroot = joinpath(populationroot, CONFIG["name"])
 const jobscript = joinpath(jobroot, "script")
 const jobresult = joinpath(jobroot, "result") # results
@@ -59,15 +60,16 @@ function next_stage(config)
         if all([p["status"] == "done" for p in stage["population"]])
             rewards = [p["reward"] for p in stage["population"]]
             println("all population done in stage $id, rewards $rewards")
-            stage["best_persion"] = argmax(rewards)
-            stage["best_reward"] = stage["population"][stage["best_persion"]]["reward"]
-            stage["next_vip"] = stage["population"][stage["best_persion"]]["config"]
-            stage["next_weight_dir"] = stage["population"][stage["best_persion"]]["weight_dir"]
+            vip_id = argmax(rewards)
+            stage["best_persion"] = vip_id
+            stage["best_reward"] = stage["population"][vip_id]["reward"]
+            stage["next_vip"] = stage["population"][vip_id]["config"]
+            stage["next_weight_dir"] = stage["population"][vip_id]["weight_dir"]
             save_stage(stage)
 
             vip = stage["next_vip"]
             weight_dir = stage["next_weight_dir"]
-            println("vip $vip selected for its average reward $(maximum(rewards))")
+            println("VIP persion $(vip_id) [$(join(vip, ", "))] selected for its average reward $(maximum(rewards))")
             id += 1
         else
             println("stage $id unfinished, continuing...")
@@ -151,7 +153,10 @@ function process_population(stage, i, config)
     elseif p["status"] == "runover"
         # summaryise
         # find log files
-        logfiles = glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone)
+        logfiles = vcat(glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone),
+                        glob("\\[STOP*\\]$(p["runname"]).sh.log", jobs),
+                        glob("\\[?-ERR*\\]$(p["runname"]).sh.log", jobs))
+
         @assert length(logfiles) >= 1
         p["weight_dir"] = strip(split(read(pipeline(`cat $(logfiles[1])`, `grep 'weights are saved at'`, `cut -b 22-`), String), "\n")[1])
         rewards = []
@@ -181,7 +186,7 @@ end
 
 function main(config)
     println("whaaa! a new day!")
-    println(json(config))
+    println("config file $CONFIG_FILE loaded\n", json(config))
     # get where we are
     stage = next_stage(config) # fill vip for this stage, error if cannot
     while stage != nothing
