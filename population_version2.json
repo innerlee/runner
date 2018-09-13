@@ -1,6 +1,6 @@
 {
     "name": "population_version2",
-    "template": "./population_test.sh",
+    "template": "./template_version2.sh",
     "envs": [
         "BuildMarines_13-17min",
         "BuildMarinesA_4-6min_RP",
