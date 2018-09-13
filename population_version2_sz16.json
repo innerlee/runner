@@ -12,15 +12,14 @@
         "id": 1,
         "vip": [15, 3, 3, 3],
         "population": [{
+            "i": 1,
             "status": "start",
             "max_update": 1000,
             "config": [15, 3, 3, 3],
-            "run_name": "abc-stage0001-persion001",
+            "run_name": "abc-stage0001-person001",
             "weight_dir": "",
             "reward": 0,
-            "reward_max": 0,
-            "reward_min": 0,
-            "reward_std": 0
+            "rewards": "0"
         }]
     }],
     "step_interval": 2000,
