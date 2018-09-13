@@ -62,7 +62,7 @@ function next_stage(config)
             rewards = [p["reward"] for p in stage["population"]]
             println("all population done in stage $id, rewards $rewards")
             vip_id = argmax(rewards)
-            stage["best_persion"] = vip_id
+            stage["best_person"] = vip_id
             stage["best_reward"] = stage["population"][vip_id]["reward"]
             stage["next_vip"] = stage["population"][vip_id]["config"]
             stage["next_weight_dir"] = stage["population"][vip_id]["weight_dir"]
@@ -70,7 +70,7 @@ function next_stage(config)
 
             vip = stage["next_vip"]
             weight_dir = stage["next_weight_dir"]
-            println("VIP persion $(vip_id) [$(join(vip, ", "))] selected for its average reward $(maximum(rewards))")
+            println("VIP person $(vip_id) [$(join(vip, ", "))] selected for its average reward $(maximum(rewards))")
             id += 1
         else
             println("stage $id unfinished, continuing...")
