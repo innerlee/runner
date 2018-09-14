@@ -189,7 +189,7 @@ function process_population(stage, i, config)
                 isfile(g) && mv(g, joinpath(jobresult, basename(g)))
             end
         end
-        println("stage $id population $i config $(vec_str(p["config"])), ",
+        println("stage $id population $i config $(vec_str(p["config"])), weighted mean reward $(p["reward"])",
                 "mean reward $(mean(rewards)), std $(std(rewards)), max $(maximum(rewards)), min $(minimum(rewards)), count $(length(rewards))")
         p["status"] = "done"
     else
