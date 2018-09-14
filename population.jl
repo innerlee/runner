@@ -174,9 +174,14 @@ function process_population(stage, i, config)
         p["weight_dir"] = strip(split(read(pipeline(`cat $(logfiles[1])`, `grep 'weights are saved at'`, `cut -b 22-`), String), "\n")[1])
         rewards = []
         for f in logfiles
-            r = read(pipeline(`cat $f`, `grep $(config["envs"][1] * "_rew_mean")`, `cut -d'|' -f3`), String)
-            append!(rewards, parse.(Float32, split(r, "\n", keepempty=false)))
+            try
+                r = read(pipeline(`cat $f`, `grep $(config["envs"][1] * "_rew_mean")`, `cut -d'|' -f3`), String)
+                append!(rewards, parse.(Float32, split(r, "\n", keepempty=false)))
+            catch y
+                println(y)
+            end
         end
+        @assert length(rewards) > 0
         p["rewards"] = join(rewards, ",")
         p["reward"] = weighted_mean(rewards)
         for f in logfiles
