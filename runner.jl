@@ -62,7 +62,14 @@ timestamp() = Dates.format(now(), "mmddHHMM")
     an array of gpu status in which `true` means free
 """
 function gpustatus()
-    stats = read(`nvidia-smi`, String)
+    for n in 1:100
+        try
+            stats = read(`nvidia-smi`, String)
+            break
+        catch
+            sleep(1 + rand())
+        end
+    end
     m = match(r"GPU\s*PID\s*Type\s*Process", stats)
     processes = stats[m.offset:end]
     gpus = trues(ngpu)
