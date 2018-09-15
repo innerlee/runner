@@ -62,11 +62,13 @@ timestamp() = Dates.format(now(), "mmddHHMM")
     an array of gpu status in which `true` means free
 """
 function gpustatus()
+    stats = ""
     for n in 1:100
         try
             stats = read(`nvidia-smi`, String)
             break
         catch
+            print("nvidia-smi err, retry $n...")
             sleep(1 + rand())
         end
     end
