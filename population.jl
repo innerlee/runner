@@ -168,6 +168,7 @@ function process_population(stage, i, config)
         # find log files
         logfiles = unique(vcat(glob("\\[DONE*\\]$(p["runname"]).sh.log", jobdone),
                                glob("\\[STOP*\\]$(p["runname"]).sh.log", jobs),
+                               glob("\\[?-ORZ*\\]$(p["runname"]).sh.log", jobs),
                                glob("\\[?-ERR*\\]$(p["runname"]).sh.log", jobs)))
 
         @assert length(logfiles) >= 1
@@ -196,7 +197,7 @@ function process_population(stage, i, config)
         println("warn: stage $id population $i in unknown state")
     end
 
-    println("stage $id population $i goto state $(p["status"])")
+    println("stage $id population $i config $(vec_str(p["config"])) goto state $(p["status"])")
     return false
 end
 
