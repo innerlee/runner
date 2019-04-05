@@ -52,9 +52,11 @@ else
 end
 println("visible gpu: $(VISIBLE_GPU).")
 
+RETRY = min(RETRY, 3)
+
 const CLEAN_TICK = 100
 const ticks = CLEAN_TICK * ones(ngpu)
-const MAX_BRACKETS = 5
+const MAX_BRACKETS = 12
 
 timestamp() = Dates.format(now(), "mmddHHMM")
 
